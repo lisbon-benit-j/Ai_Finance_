@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Financial Chat{% endblock %}
+
+{% block head %}
+<!-- Tailwind CSS CDN -->
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<!-- Google Material Icons -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+    /* Smooth scroll */
+    #chatContainer {
+        scroll-behavior: smooth;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-10 bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+    <!-- Header -->
+    <div class="p-4 bg-blue-600 text-white flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold flex items-center">
+                <span class="material-icons mr-2">chat</span>
+                Financial Chat Assistant
+            </h1>
+            <p class="text-sm opacity-80 mt-1">Ask me anything about your finances or spending habits</p>
+        </div>
+    </div>
+
+    <!-- Chat Box -->
+    <div class="h-96 overflow-y-auto p-4 bg-gray-50" id="chatContainer">
+        <!-- Welcome Message -->
+        <div class="flex mb-4">
+            <div class="flex-shrink-0 mr-3">
+                <div class="bg-blue-100 text-blue-800 rounded-full w-10 h-10 flex items-center justify-center">
+                    <span class="material-icons">account_balance</span>
+                </div>
+            </div>
+            <div class="bg-white p-3 rounded-lg shadow-sm max-w-3xl border border-gray-100">
+                <p class="font-semibold text-blue-600">Financial Assistant</p>
+                <p class="text-gray-700 mt-1">Hello! I'm your financial assistant. You can ask me questions like:</p>
+                <ul class="list-disc pl-5 mt-2 text-gray-700 space-y-1">
+                    <li>How can I reduce my spending on groceries?</li>
+                    <li>What's my biggest spending category this month?</li>
+                    <li>Suggest ways to save more money.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Messages dynamically added here -->
+        <div id="messagesContainer"></div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="p-4 border-t border-gray-200 bg-white">
+        <form id="chatForm" class="flex space-x-2">
+            <input type="text" id="messageInput" name="message" placeholder="Type your financial question..."
+                   class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   required>
+            <button type="submit"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 focus:outline-none flex items-center">
+                <span class="material-icons mr-1">send</span>
+                Send
+            </button>
+        </form>
+        <p class="text-xs text-gray-500 mt-2">
+            💡 The assistant analyzes your recent transactions to give you personalized insights.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatForm = document.getElementById('chatForm');
+    const messageInput = document.getElementById('messageInput');
+    const messagesContainer = document.getElementById('messagesContainer');
+    const chatContainer = document.getElementById('chatContainer');
+
+    chatForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        addMessage(message, 'user');
+        messageInput.value = '';
+        const typingIndicator = addTypingIndicator();
+
+        try {
+            const response = await fetch('{{ url_for("financial_chat") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ 'message': message })
+            });
+
+            const data = await response.json();
+            typingIndicator.remove();
+
+            if (data.response) addMessage(data.response, 'bot');
+            else if (data.error) addMessage(`⚠️ ${data.error}`, 'bot');
+            else addMessage("Sorry, I couldn't process your request.", 'bot');
+        } catch (error) {
+            typingIndicator.remove();
+            addMessage("⚠️ An error occurred. Please try again later.", 'bot');
+            console.error(error);
+        }
+    });
+
+    function addMessage(text, sender) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex mb-4 ${sender === 'user' ? 'justify-end' : ''}`;
+
+        if (sender === 'user') {
+            messageDiv.innerHTML = `
+                <div class="bg-blue-600 text-white p-3 rounded-lg shadow-sm max-w-3xl">
+                    <p class="font-semibold">You</p>
+                    <p class="mt-1 whitespace-pre-wrap">${text}</p>
+                </div>
+                <div class="flex-shrink-0 ml-3">
+                    <div class="bg-blue-100 text-blue-800 rounded-full w-10 h-10 flex items-center justify-center">
+                        <span class="material-icons">person</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            messageDiv.innerHTML = `
+                <div class="flex-shrink-0 mr-3">
+                    <div class="bg-blue-100 text-blue-800 rounded-full w-10 h-10 flex items-center justify-center">
+                        <span class="material-icons">account_balance</span>
+                    </div>
+                </div>
+                <div class="bg-white p-3 rounded-lg shadow-sm max-w-3xl border border-gray-100">
+                    <p class="font-semibold text-blue-600">Financial Assistant</p>
+                    <p class="text-gray-700 mt-1 whitespace-pre-wrap">${text}</p>
+                </div>
+            `;
+        }
+
+        messagesContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function addTypingIndicator() {
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'flex mb-4';
+        typingDiv.id = 'typingIndicator';
+        typingDiv.innerHTML = `
+            <div class="flex-shrink-0 mr-3">
+                <div class="bg-blue-100 text-blue-800 rounded-full w-10 h-10 flex items-center justify-center">
+                    <span class="material-icons">account_balance</span>
+                </div>
+            </div>
+            <div class="bg-white p-3 rounded-lg shadow-sm max-w-xs">
+                <div class="flex space-x-1">
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.4s"></div>
+                </div>
+            </div>
+        `;
+        messagesContainer.appendChild(typingDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        return typingDiv;
+    }
+
+    messageInput.focus();
+});
+</script>
+{% endblock %}

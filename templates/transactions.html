@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <h1 class="text-2xl font-bold">Transactions</h1>
+    <a href="{{ url_for('add_transaction') }}" 
+       class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center">
+        <span class="material-icons mr-1">add</span>
+        Add Transaction
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="bg-white p-4 rounded-lg shadow-md mb-6">
+    <form method="GET" action="{{ url_for('transactions') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+            <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <select id="category" name="category" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                <option value="">All Categories</option>
+                {% for category in categories %}
+                    <option value="{{ category }}" {% if current_filters.category == category %}selected{% endif %}>{{ category }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="payment_method" class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+            <select id="payment_method" name="payment_method" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                <option value="">All Methods</option>
+                {% for method in payment_methods %}
+                    <option value="{{ method }}" {% if current_filters.payment_method == method %}selected{% endif %}>{{ method }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+            <input type="date" id="start_date" name="start_date" value="{{ current_filters.start_date }}"
+                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+        </div>
+        <div>
+            <label for="end_date" class="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+            <input type="date" id="end_date" name="end_date" value="{{ current_filters.end_date }}"
+                   class="w-full border border-gray-300 rounded-md px-3 py-2">
+        </div>
+        <div class="md:col-span-4 flex justify-end space-x-2">
+            <button type="submit" 
+                    class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                Apply Filters
+            </button>
+            <a href="{{ url_for('transactions') }}" 
+               class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300">
+                Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Transactions Table -->
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for transaction in transactions %}
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap">{{ transaction.date }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ transaction.category }}</td>
+                <td class="px-6 py-4 whitespace-nowrap font-semibold 
+                    {% if transaction.amount < 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                    ${{ "%.2f"|format(transaction.amount) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ transaction.payment_method }}</td>
+                <td class="px-6 py-4">{{ transaction.description or '-' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex space-x-2">
+                        <a href="{{ url_for('edit_transaction', transaction_id=transaction.id) }}" 
+                           class="text-blue-600 hover:text-blue-800">
+                            <span class="material-icons">edit</span>
+                        </a>
+                        <form method="POST" action="{{ url_for('delete_transaction', transaction_id=transaction.id) }}" 
+                              onsubmit="return confirm('Are you sure you want to delete this transaction?');">
+                            <button type="submit" class="text-red-600 hover:text-red-800">
+                                <span class="material-icons">delete</span>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="px-6 py-4 text-center text-gray-500">No transactions found</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

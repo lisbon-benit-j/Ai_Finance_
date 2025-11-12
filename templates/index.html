@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h2 class="text-2xl font-bold mb-4">Monthly Summary</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Total Spent -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Total Spent</h3>
+                <span class="material-icons text-blue-500">payments</span>
+            </div>
+            <p class="text-3xl font-bold">${{ "%.2f"|format(monthly_summary.total_spent) }}</p>
+            <div class="mt-4">
+                <div class="flex justify-between text-sm mb-1">
+                    <span>Limit: ${{ "%.2f"|format(monthly_summary.monthly_limit) }}</span>
+                    <span>Remaining: ${{ "%.2f"|format(monthly_summary.remaining) }}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div class="bg-blue-600 h-2.5 rounded-full" 
+                         style="width: {{ monthly_summary.spending_percentage }}%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Categories -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Top Categories</h3>
+            <ul class="space-y-3">
+                {% for category, amount in monthly_summary.spending_by_category.items() %}
+                    {% if loop.index <= 3 %}
+                    <li>
+                        <div class="flex justify-between">
+                            <span>{{ category }}</span>
+                            <span>${{ "%.2f"|format(amount) }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                            <div class="bg-green-500 h-1.5 rounded-full" 
+                                 style="width: {{ (amount / monthly_summary.total_spent * 100) if monthly_summary.total_spent > 0 else 0 }}%"></div>
+                        </div>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Payment Methods -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Payment Methods</h3>
+            <ul class="space-y-3">
+                {% for method, amount in monthly_summary.spending_by_method.items() %}
+                <li class="flex justify-between">
+                    <span>{{ method }}</span>
+                    <span>${{ "%.2f"|format(amount) }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+
+<div class="mb-8">
+    <h2 class="text-2xl font-bold mb-4">Budget Overview</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for category, data in monthly_summary.category_usage.items() %}
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-semibold">{{ category }}</h3>
+                <span class="text-sm">${{ "%.2f"|format(data.spent) }} of ${{ "%.2f"|format(data.limit) }}</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                <div class="h-2.5 rounded-full 
+                    {% if data.percentage > 90 %}bg-red-500
+                    {% elif data.percentage > 75 %}bg-yellow-500
+                    {% else %}bg-green-500{% endif %}" 
+                    style="width: {{ data.percentage }}%"></div>
+            </div>
+            <div class="flex justify-between text-sm text-gray-600">
+                <span>{{ "%.0f"|format(data.percentage) }}%</span>
+                <span>${{ "%.2f"|format(data.remaining) }} left</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Visualization Graph: Spending by Category -->
+<div class="mb-8">
+    <h2 class="text-2xl font-bold mb-4">Spending by Category (Graph)</h2>
+    <div class="bg-white p-6 rounded-lg shadow flex flex-col items-center">
+        <canvas id="categoryChart" width="400" height="200"></canvas>
+    </div>
+</div>
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var ctx = document.getElementById('categoryChart').getContext('2d');
+    var categoryLabels = {{ monthly_summary.spending_by_category.keys()|list|tojson|safe }};
+    var categoryData = {{ monthly_summary.spending_by_category.values()|list|tojson|safe }};
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: categoryLabels,
+            datasets: [{
+                label: 'Amount Spent',
+                data: categoryData,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: 'Spending by Category'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
+
+<div>
+    <h2 class="text-2xl font-bold mb-4">Recent Transactions</h2>
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for transaction in recent_transactions %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ transaction.date }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ transaction.category }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap font-semibold 
+                        {% if transaction.amount < 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                        ${{ "%.2f"|format(transaction.amount) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ transaction.payment_method }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="p-4 border-t border-gray-200">
+            <a href="{{ url_for('transactions') }}" class="text-blue-600 hover:text-blue-800 flex items-center">
+                View all transactions
+                <span class="material-icons ml-1">chevron_right</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
